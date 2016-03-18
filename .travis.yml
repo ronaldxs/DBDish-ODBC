@@ -11,7 +11,7 @@ install:
     - panda installdeps .
 before_install:
     - sudo apt-get -qq update
-    - sudo apt-get install -qq -y unixodbc
+    - sudo apt-get install -qq -y libodbc1
     - sudo apt-get install -qq -y libmyodbc
     - sudo apt-get install -qq -y odbc-postgresql
     # mysql

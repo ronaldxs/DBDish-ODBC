@@ -6,7 +6,12 @@ use NativeHelpers::Blob;
 use nqp;
 
 sub MyLibName {
-    %*ENV<DBDISH_ODBC_LIB> || guess_library_name(('odbc', v2));
+    my $pref_ver = v2;
+    if %*ENV<DEBIAN_FRONTEND> eq 'noninteractive' {
+	# I'm on travis
+	$pref_ver = v1;
+    }
+    %*ENV<DBDISH_ODBC_LIB> || guess_library_name(('odbc', $pref_ver));
 }
 constant LIB = &MyLibName;
 
