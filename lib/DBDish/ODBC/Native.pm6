@@ -7,8 +7,7 @@ use nqp;
 
 sub MyLibName {
     my $pref_ver = v2;
-    if %*ENV<DEBIAN_FRONTEND> eq 'noninteractive' {
-	# I'm on travis
+    if %*ENV<DEBIAN_FRONTEND> { # I'm on travis
 	$pref_ver = v1;
     }
     %*ENV<DBDISH_ODBC_LIB> || guess_library_name(('odbc', $pref_ver));
