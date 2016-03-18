@@ -32,16 +32,21 @@ my \SQL_OV_ODBC3    = 3;
 my \SQL_OV_ODBC3_80 = 380;
 
 # Status
-constant SQL_SUCCESS_MASK = 0xFFFFFFFE;
-constant SQL_SUCCESS is export = 0;
-constant SQL_SUCCESS_WITH_INFO is export = 1;
-constant SQL_NO_DATA is export = 100;
+constant SQL_SUCCESS_MASK is export = 0xFFFFFFFE;
+constant SQL_SUCCESS           is export   = 0;
+constant SQL_SUCCESS_WITH_INFO is export   = 1;
+constant SQL_NO_DATA           is export = 100;
 
 # ATTRs
 constant SQL_ATTR_ODBC_VERSION = 200;
 
+constant SQL_FETCH_NEXT         is export =  1;
+constant SQL_FETCH_FIRST        is export =  2;
+constant SQL_FETCH_FIRST_USER   is export = 31;
+constant SQL_FETCH_FIRST_SYSTEM is export = 32;
+
 constant SQL_NULL_DATA is export = -1;
-constant SQL_NTS is export = -3;
+constant SQL_NTS       is export = -3;
 
 # Params type
 constant SQL_PARAM_TYPE_UNKNOWN        =  0;
@@ -227,6 +232,7 @@ class SQL_HANDLE is repr('CPointer') {
 	sub SQLGetDiagRec(
 	    int16, SQL_HANDLE, int16, utf8, int32 is rw,
 	    utf8, int32, int32 is rw --> int16) is native(LIB) { * }
+
 	if $code +& SQL_SUCCESS_MASK {
 	    my ODBCErr $rep;
 	    if self { # On allocated handle
@@ -244,7 +250,10 @@ class SQL_HANDLE is repr('CPointer') {
 		    :$state, :$native, :native-message($message),
 		    :handle(self.^name)
 		).fail if $throw;
-		$rep .= new(:list(~$state, ~$message.subbuf(^$etl)));
+		$rep .= new(
+		    :list(~$state, ~$message.subbuf(^$etl)),
+		    :hash(%(:$code))
+		);
 	    }
 	    else { fail "Can't allocate the ENV Handle" }
 	    $rep;
@@ -264,6 +273,35 @@ class SQLENV is SQL_HANDLE is export is repr('CPointer') {
 
     method SetEnvAttr(int32 $attr, Pointer $val, int32 $len --> int16)
 	is symbol('SQLSetEnvAttr') is native(LIB) { * }
+
+    method Drivers(Int $dir) {
+	sub SQLDrivers(SQLENV:D, uint16, utf8, int16, int16 is rw,
+	    utf8, int16, int16 is rw --> int16) is native(LIB) { * }
+
+	my utf8 $drv_desc .= allocate( 255);
+	my utf8 $drv_attr .= allocate(1024);
+	self.handle-res(
+	    SQLDrivers(self, $dir, $drv_desc,  255, my int16 $etl1,
+				   $drv_attr, 1024, my int16 $etl2)
+	) || do {
+	    (~$drv_desc.subbuf(^$etl1), ~$drv_attr.subbuf(^$etl2))
+	};
+    }
+
+    method DataSources(Int $dir) {
+	sub SQLDataSources(SQLENV:D, uint16, utf8, int16, int16 is rw,
+	    utf8, int16, int16 is rw --> int16) is native(LIB) { * }
+
+	my utf8 $drv_desc .= allocate( 255);
+	my utf8 $drv_attr .= allocate(1024);
+	self.handle-res(
+	    SQLDataSources(self, $dir, $drv_desc,  255, my int16 $etl1,
+				       $drv_attr, 1024, my int16 $etl2)
+	) || do {
+	    (~$drv_desc.subbuf(^$etl1), ~$drv_attr.subbuf(^$etl2))
+	};
+    }
+
 }
 
 class SQLDBC is SQL_HANDLE is export is repr('CPointer') {
@@ -280,6 +318,7 @@ class SQLDBC is SQL_HANDLE is export is repr('CPointer') {
 	sub SQLDriverConnect(SQLDBC:D, Pointer, Str, int16, utf8, int16,
 	    int32 is rw, int32 --> int16)
 	    is native(LIB) { * }
+
 	my utf8 $ret .= allocate(1024);
 	my int32 $etl;
 	self.handle-res(
@@ -295,8 +334,8 @@ class SQLDBC is SQL_HANDLE is export is repr('CPointer') {
 	sub SQLGetInfo(SQLDBC:D, int16, Pointer, int16, int16 is rw --> int16)
 	    is native(LIB) { * }
 
+	#TODO
     }
-
 }
 
 class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
@@ -306,16 +345,19 @@ class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
     }
     method ExecDirect(Str $statement) {
 	sub SQLExecDirect(SQLSTMT:D, Str, int16 --> int16) is native(LIB) { * }
+
 	self.handle-res(SQLExecDirect(self, $statement, SQL_NTS)) || True;
     }
 
     method Prepare(Str $statement) {
 	sub SQLPrepare(SQLSTMT:D, Str, int16 --> int16) is native(LIB) { * }
+
 	self.handle-res(SQLPrepare(self, $statement, SQL_NTS)) || True;
     }
 
     method NumParams() {
 	sub SQLNumParams(SQLSTMT:D, int32 is rw --> int16) is native(LIB) { * }
+
 	my int32 $params;
 	self.handle-res(SQLNumParams(self, $params)) || $params;
     }
@@ -323,6 +365,7 @@ class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
     method DescribeParam(Int $par) {
 	sub SQLDescribeParam(SQLSTMT:D, uint16, int16 is rw, uint64 is rw,
 	    uint16 is rw, uint16 is rw --> int16) is native(LIB) { * }
+
 	self.handle-res(SQLDescribeParam(self, $par, my int16 $datatype,
 	    my int32 $colsize, my int16 $dd, my int16 $nullable)
 	) || do {
@@ -335,14 +378,14 @@ class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
 	}
     }
 
-    method BindParameter(Int $par, $type, Blob $data, $SoI) {
+    method BindParameter(Int $par, $type, Blob $data, Buf[int64] $SoI) {
 	sub SQLBindParameter(SQLSTMT:D, uint16, int16, int16, int16,
 	    int32, int16, Blob, int64, Pointer --> int16) is native(LIB) { * }
-	my $BS = BPointer($SoI, :typed);
-	my $PSoI = nativecast(Pointer[int64],
-	    Pointer.new(+$BS + ($par - 1) * nativesizeof(int64))
+
+	my $BS   = BPointer($SoI, :typed);
+	my $PSoI = nativecast(
+	    Pointer[int64], Pointer.new(+$BS + ($par - 1) * nativesizeof(int64))
 	);
-	#say $type<datatype>," ",$data;
 	self.handle-res: SQLBindParameter(
 	    self, $par, SQL_PARAM_INPUT,
 	    ($type<type> ~~ Blob ?? SQL_C_BINARY !! SQL_C_CHAR),
@@ -373,17 +416,17 @@ class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
 		$type = Str;
 	    }
 	    Map.new: ( :name(~$name.subbuf(^$etl)),
-		:$datatype, :$type, :$colsize, :$dd, :$nullable );
+		       :$datatype, :$type, :$colsize, :$dd, :$nullable );
 	}
     }
 
     method Fetch(--> int16) is symbol('SQLFetch') is native(LIB) { * }
 
     method GetData(Int $col, :$raw) {
-	my Buf $data .= allocate(1024);
-	my int64 $etl;
 	sub SQLGetData(SQLSTMT:D, uint16, uint16, Buf, int64, int64 is rw --> int16)
 	    is native(LIB) { * }
+	my Buf $data .= allocate(1024);
+	my int64 $etl;
 	self.handle-res(
 	    SQLGetData(self, $col,
 		($raw ?? SQL_C_BINARY !! SQL_C_CHAR), $data, 1024, $etl
