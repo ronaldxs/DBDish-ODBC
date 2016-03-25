@@ -27,25 +27,25 @@ method prepare(Str $statement, *%args) {
 	}
 	else { .fail }
 	DBDish::ODBC::StatementHandle.new(
-	    :$sth, :$!conn, :parent(self), :param-type(@param-type), :$.RaiseError
+	    :$sth, :$!conn, :parent(self), :@param-type, :$.RaiseError
 	)
     } else { .fail }
 }
 
-method execute(Str $statement) {
+# The named 'rows' is only a testing helper, don't depend on it
+method execute(Str $statement, :$rows) {
     my $sth = SQLSTMT.Alloc($!conn);
-    without self!handle-error: $sth.ExecDirect($statement) { .fail }
-    my @results;
-    if $sth.NumResultCols -> $cols {
-	loop (my $rc = $sth.Fetch; $rc == SQL_SUCCESS; $rc = $sth.Fetch) {
-	    for ^$cols {
-		with $sth.GetData($_+1) -> $data {
-		    @results[$_] = val($data);
-		}
-	    }
+    my $st = DBDish::ODBC::StatementHandle.new(
+	:$sth, :$!conn, :parent(self), :$.RaiseError, :$statement, :param-type(@)
+    );
+    with $st.execute {
+	if $rows {
+	    LEAVE { $st.dispose };
+	    my @r = $st.allrows;
+	} else {
+	    $_;
 	}
-    }
-    @results;
+    } else { .fail }
 }
 
 method ping {

@@ -42,7 +42,7 @@ isa-ok $dbh, ::('DBDish::ODBC::Connection');
 ok $dbh.fconn-str,				     'Full connection string available';
 #dd $dbh.fconn-str;
 
-ok (my @res = $dbh.execute(q|SELECT 'Hola a todos', 5|)),       'Can execute statement';
+ok (my @res = $dbh.execute(q|SELECT 'Hola a todos', 5|):rows),  'Can execute statement';
 is @res, ['Hola a todos', 5],				             'The right values';
 
 ok (my $sth = $dbh.prepare(q|SELECT 'Hola mundo' as Hello|)),   'Can prepare statement';

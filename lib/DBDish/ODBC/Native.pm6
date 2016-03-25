@@ -425,11 +425,11 @@ class SQLSTMT is SQL_HANDLE is export is repr('CPointer') {
     method GetData(Int $col, :$raw) {
 	sub SQLGetData(SQLSTMT:D, uint16, uint16, Buf, int64, int64 is rw --> int16)
 	    is native(LIB) { * }
-	my Buf $data .= allocate(1024);
+	my Buf $data .= allocate(4096);
 	my int64 $etl;
 	self.handle-res(
 	    SQLGetData(self, $col,
-		($raw ?? SQL_C_BINARY !! SQL_C_CHAR), $data, 1024, $etl
+		($raw ?? SQL_C_BINARY !! SQL_C_CHAR), $data, 4096, $etl
 	    )
 	) ||  do {
 	    if $etl >= 0 {
