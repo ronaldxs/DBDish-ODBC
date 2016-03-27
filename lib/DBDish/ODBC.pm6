@@ -1,7 +1,7 @@
 use v6;
 need DBDish;
 
-unit class DBDish::ODBC:auth<salortiz>:ver<0.0.2> does DBDish::Driver;
+unit class DBDish::ODBC:auth<salortiz>:ver<0.0.5> does DBDish::Driver;
 use DBDish::ODBC::Native;
 need DBDish::ODBC::Connection;
 

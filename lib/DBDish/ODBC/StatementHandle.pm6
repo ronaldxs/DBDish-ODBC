@@ -11,12 +11,35 @@ has Str $!statement;
 has @!param-type;
 has $!field_count;
 
-submethod BUILD(:$!conn!, :$!parent!,
-    :$!sth!, :@!param-type, :$!statement = '', :$!RaiseError
-) { }
-
 method !handle-error($rep) {
     $rep ~~ ODBCErr ?? self!set-err(|$rep) !! $rep
+}
+
+method !get-meta {
+    with self!handle-error($!sth.NumResultCols) -> $fc {
+	for ^$fc {
+	    my $meta = $!sth.DescribeCol($_+1);
+	    @!column-name.push($meta<name>);
+	    @!column-type.push($meta<type>);
+	}
+	$!field_count = $fc;
+    } else { .fail }
+}
+
+submethod BUILD(:$!conn!, :$!parent!,
+    :$!sth!, :$!statement = '', :$!RaiseError
+) {
+    unless $!statement { # Prepared
+	with self!handle-error($!sth.NumParams) -> $params {
+	    for ^$params {
+		with self!handle-error: $!sth.DescribeParam($_+1) {
+		    @!param-type.push: $_;
+		} else { .fail }
+	    }
+	}
+	else { .fail }
+	self!get-meta;
+    }
 }
 
 method execute(*@params) {
@@ -40,20 +63,11 @@ method execute(*@params) {
 	?? $!sth.ExecDirect($!statement)
 	!! $!sth.handle-res($!sth.Execute) { .fail }
 
-    my $rows = $!sth.RowCount; my $was-select = True;
-    without $!field_count {
-	$!field_count = $!sth.NumResultCols;
-	for ^$!field_count {
-	    my $meta = $!sth.DescribeCol($_+1);
-	    @!column-name.push($meta<name>);
-	    @!column-type.push($meta<type>);
-	}
-	# TODO, not all ODBC drivers returns a sensible RowCount for SELECT
-    }
-    unless $!field_count {
-	$was-select = False;
-    }
-    self!done-execute($rows, $was-select);
+    self!get-meta without $!field_count;
+
+    my $rows = $!sth.RowCount;
+    # TODO, not all ODBC drivers returns a sensible RowCount for SELECT
+    self!done-execute($rows, $!field_count);
 }
 
 method _row(:$hash) {

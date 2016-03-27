@@ -17,17 +17,8 @@ method !handle-error($rep) {
 method prepare(Str $statement, *%args) {
     with SQLSTMT.Alloc($!conn) -> $sth {
 	self!handle-error: $sth.Prepare($statement);
-	my @param-type;
-	with self!handle-error($sth.NumParams) -> $params {
-	    for ^$params {
-		with self!handle-error: $sth.DescribeParam($_+1) {
-		    @param-type.push: $_;
-		} else { .fail }
-	    }
-	}
-	else { .fail }
 	DBDish::ODBC::StatementHandle.new(
-	    :$sth, :$!conn, :parent(self), :@param-type, :$.RaiseError
+	    :$sth, :$!conn, :parent(self), :$.RaiseError
 	)
     } else { .fail }
 }
@@ -36,7 +27,7 @@ method prepare(Str $statement, *%args) {
 method execute(Str $statement, :$rows) {
     my $sth = SQLSTMT.Alloc($!conn);
     my $st = DBDish::ODBC::StatementHandle.new(
-	:$sth, :$!conn, :parent(self), :$.RaiseError, :$statement, :param-type(@)
+	:$sth, :$!conn, :parent(self), :$.RaiseError, :$statement
     );
     with $st.execute {
 	if $rows {
