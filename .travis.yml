@@ -6,9 +6,6 @@ language: perl6
 perl6:
     - latest
 sudo: true
-install:
-    - rakudobrew build-panda
-    - panda installdeps .
 before_install:
     - sudo apt-get -qq update
     - sudo apt-get install -qq -y libodbc1
