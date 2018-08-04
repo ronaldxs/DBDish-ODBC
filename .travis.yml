@@ -11,13 +11,13 @@ before_install:
     - sudo apt-get -qq update
     - sudo apt-get install -qq -y libodbc1
     - sudo apt-get install -qq -y libmyodbc
-    - sudo apt-get install -qq -y odbc-postgresql
+    # - sudo apt-get install -qq -y odbc-postgresql
     # mysql
     - mysql -e "CREATE DATABASE dbdishtest;" -uroot
     - mysql -e "CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'testpass';" -uroot
     - mysql -e "GRANT ALL PRIVILEGES ON dbdishtest.* TO 'testuser'@'localhost';" -uroot
     # Pg
-    - psql -c 'CREATE DATABASE dbdishtest;' -U postgres
+    # - psql -c 'CREATE DATABASE dbdishtest;' -U postgres
 
 install:
     - rakudobrew build-zef
