@@ -7,8 +7,8 @@ perl6:
     - latest
 sudo: true
 install:
-    - rakudobrew build-panda
-    - panda installdeps .
+    - rakudobrew build-zef
+    - zef --depsonly install .
 before_install:
     - sudo apt-get -qq update
     - sudo apt-get install -qq -y libodbc1
