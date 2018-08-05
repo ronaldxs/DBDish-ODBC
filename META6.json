@@ -6,7 +6,6 @@
     "auth"	    : "github:salortiz",
     "description"   : "ODBC Database connectivity for Perl 6",
     "depends"	    : [ "DBIish", "NativeHelpers::Blob" ],
-    "test-depends" : [ "Test", "Test::META", "DBIish" ],	
     "provides" : {
         "DBDish::ODBC"		        : "lib/DBDish/ODBC.pm6",
         "DBDish::ODBC::Native"          : "lib/DBDish/ODBC/Native.pm6",
